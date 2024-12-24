@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Carousel</title>
+    <style>
+        body {
+            position:absolute;
+            margin: 0  ;
+            background-image: url('xFrame_plastic_scratch_D.jpg');
+            background-size: 2850px 800px;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }
+
+        .container {
+            position:absolute;
+        }
+        .carousel {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .carousel img {
+            max-width: 100%;
+            max-height: 80vh;
+        }
+
+        .arrow {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .left-arrow {
+            position: absolute;
+            left: 10px;
+        }
+
+        .right-arrow {
+            position: absolute;
+            right: 10px;
+        }
+
+        .overlay1 {
+            position: absolute;
+            align-items: center;
+            width: 120px; height: 212px; 
+            top: 0px; left: 0px; right: 0px; z-index: 0;
+            background: rgba(0,0,0,.5);
+        }
+        .overlay2top {
+            position: absolute;
+            align-items: center;
+            top: 50px; left: 26px; ; z-index: 1;
+            width: 70px; height: 53px; 
+            object-fit:cover; 
+            object-position: 0 0%;
+        }
+        .overlay2topHint {
+            position: absolute;
+            align-items: center;
+            top: 50px; left: 26px; ; z-index: 1;
+            width: 70px; height: 10px; 
+            object-fit:cover; 
+            object-position: 0 0%;
+        }
+
+        .overlay2bottom {
+            position: absolute;
+            align-items: center;
+            z-index: 1;
+            width: 70px; height: 53px; 
+            object-fit:cover; 
+            object-position: 0% 100%;
+            top: 110px; left: 26px; 
+        }
+        .overlay2bottomHint {
+            position: absolute;
+            align-items: center;
+            z-index: 1;
+            width: 70px; height: 10px; 
+            object-fit:cover; 
+            object-position: 0% 100%;
+            top: 153px; left: 26px; 
+        }
+
+        .overlay2:hover {
+              opacity:  50%;
+              transform: rotate(20deg);
+        }
+
+        .overlay2top, .overlay2bottom {
+            will-change: transform, opacity;
+        }
+
+
+
+    </style>
+</head>
+<body>
+    <br>
+    <div class="input-container">
+        <input type="text" id="input-line-1" placeholder="Enter digits for line 1">
+        <input type="text" id="input-line-2" placeholder="Enter digits for line 2">
+        <input type="text" id="input-line-3" placeholder="Enter digits for line 3">
+        <br>
+        <b><button onclick="updateDisplay( true )">Set now</button>
+        <button onclick="updateDisplay( false )">Set target</button>
+        <button onclick="setCurrentTimeAsText()">Set time</button>
+    </b>
+
+    <button class="arrow left-arrowx" onclick="prevImage()">&#9664;</button>
+    Letter:<a id="carousel-char">-c-</a>-Index:
+    <a id="carousel-index">-x-</a>
+    <button class="arrow right-arrowx" onclick="nextImage()">&#9654;</button>
+    </div>
+    <script>
+        // Icons
+        let fontIcons = [ 
+            "cutlery", "spoon", "knife fork", "burger", "sunchair", "palmtree", "compass", "cocktail", 
+            "skuba", "plane flyimg", "plane takeoff", "plane landing", "starfish", "snowman", "gingerbread man", "christmas tree 1", "christmas tree 2", 
+            "stocking", "orgnament", "gift", "star", "bell", "candy cane", "hot drink", "santa", "bauble 1", 
+            "bauble 2", "bauble 3", "phone wifi", "coffee", "pass", "key", "parking", "wheelchair", "litter",
+            "man", "woman", "no smoking", "recycle", "face smile", "face frown", "face wink", "face smirk", 
+            "face question", "face silent", "face sleep", "face cheeky", "face laugh", "candle"
+        ];
+
+      class Digit {
+            // 1 space - 10 digits - 26 letters - 38 special characters - 49 icons
+            static allLetters = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "|#@[%€$₺£" + "^\"\\*°ˣ]÷;" + ":=-+\/.,_{" + "~}0(!)?<>" + "§\&"
+                    + "abcdefghijklmnopqrstuvwxyz"; // followed by icons 0-49 accessed by lower case letters
+            static rangeLetters = 1+10+26+38+49;
+            static totalImages = 5; // Adjust this number based on the total number of images
+
+            constructor(digit_id, currentImageIndex, currentLetterIndex, x, y) {
+                this.digit_id = digit_id;
+                this.currentImageIndex = currentImageIndex;
+                this.currentLetterIndex = currentLetterIndex;
+                this.targetLetterIndex = currentLetterIndex;    
+                this.x = x;
+                this.y = y;
+                this.createDigitContainer();
+                this.moveDigit(x, y);
+                this.updateImage();
+            }
+
+            getOverlayFilename(index) {
+                if( index== 0 ) {
+                    return `transparent/Font_mask_clear.jpg`;
+                } else if (index < 37) {
+                    return `transparent/Font_mask_${Digit.allLetters[index]}.jpg`;
+                } else if (index < 75) {
+                    return `transparent/Font_mask_special_${index - 36}.jpg`;
+                } else if (index < 124) {
+                    return `transparent/Font_mask_icon_${index - 74}.jpg`;
+                }
+            }
+
+            createDigitContainer() {
+                const container = document.createElement('div');
+                container.id = this.digit_id;
+                container.className = 'container';
+
+                this.carouselImage = document.createElement('img');
+                this.carouselImage.id = 'carousel-image';
+                this.carouselImage.className = 'overlay1';
+                container.appendChild(this.carouselImage);
+
+                this.overlayImageT = document.createElement('img');
+                this.overlayImageT.id = 'overlay-imageT';
+                this.overlayImageT.className = 'overlay2top';
+                container.appendChild(this.overlayImageT);
+                
+                this.overlayImageTHint = document.createElement('img');
+                this.overlayImageTHint.id = 'overlay-imageT-hint';
+                this.overlayImageTHint.className = 'overlay2topHint';
+                container.appendChild(this.overlayImageTHint);
+
+                this.overlayImageB = document.createElement('img');
+                this.overlayImageB.id = 'overlay-imageB';
+                this.overlayImageB.className = 'overlay2bottom';
+                container.appendChild(this.overlayImageB);
+
+                this.overlayImageBHint = document.createElement('img');
+                this.overlayImageBHint.id = 'overlay-imageB-hint';
+                this.overlayImageBHint.className = 'overlay2bottomHint';
+                container.appendChild(this.overlayImageBHint);
+                
+                document.body.appendChild(container);
+            }
+
+            updateImage() {
+                const overlayFilename = this.getOverlayFilename(this.currentLetterIndex);
+                const overlayNextFilename = this.getOverlayFilename(this.currentLetterIndex + 1);
+                const overlayPriorFilename = this.getOverlayFilename(this.currentLetterIndex - 1);
+
+                this.carouselImage.src = `finish_empty_${this.currentImageIndex}.png`;
+
+                if( overlayFilename != null ) {
+                    requestAnimationFrame(() => {
+                        this.overlayImageT.style.transform = overlayTransformT[this.currentImageIndex - 1];
+                        this.overlayImageT.src = overlayFilename;
+                        this.overlayImageT.style.display = 'block'; // Show
+
+                        this.overlayImageB.style.transform = overlayTransformB[this.currentImageIndex - 1];
+                        this.overlayImageB.src = overlayFilename;
+                        this.overlayImageB.style.display = 'block'; // Show
+                    });
+                }
+
+                // index 2 display hint of next letter on top
+                if (this.currentImageIndex == 2) {
+                    this.overlayImageTHint.src = overlayNextFilename;
+                    this.overlayImageTHint.style.display = 'block'; // Show the hint
+                } else {
+                    this.overlayImageTHint.style.display = 'none'; // Hide the hint
+                }
+
+                // index 3 display hint of prior letter on bottom
+                if (this.currentImageIndex == 3) {
+                    this.overlayImageBHint.src = overlayPriorFilename;
+                    this.overlayImageBHint.style.display = 'block'; // Show the hint
+                } else {
+                    this.overlayImageBHint.style.display = 'none'; // Hide the hint
+                }
+            }
+
+            prevImage() {
+                if (this.currentImageIndex > 1) {
+                    this.currentImageIndex -= 1;
+                    if( this.currentImageIndex == 2 ) {
+                        if( this.currentLetterIndex > 0 ) {
+                            this.currentLetterIndex -= 1;
+                        }
+                        else {
+                            this.currentLetterIndex = Digit.rangeLetters;
+                        }
+                    }
+                } else {
+                    this.currentImageIndex = Digit.totalImages;
+                }
+                requestAnimationFrame(() => this.updateImage())
+            }
+
+            nextImage() {
+                if (this.currentImageIndex < Digit.totalImages) {
+                    this.currentImageIndex += 1;
+                    if( this.currentImageIndex == 3 ) {
+                        if( this.currentLetterIndex < Digit.rangeLetters ) {
+                            this.currentLetterIndex += 1;
+                        }
+                        else {
+                            this.currentLetterIndex = 0;
+                        }                    
+                    }
+                } else {
+                    this.currentImageIndex = 1;
+                }
+                requestAnimationFrame(() => this.updateImage())
+            }
+
+            nextFlap() {   // move to next flap until at the target letter
+                if (this.currentLetterIndex == this.targetLetterIndex && this.currentImageIndex == 1) {
+                    return;
+                }
+                if (this.currentImageIndex < Digit.totalImages) {
+                    this.currentImageIndex += 1;
+                    if( this.currentImageIndex == 3 ) {
+                        if( this.currentLetterIndex < Digit.rangeLetters ) {
+                            this.currentLetterIndex += 1;
+                        }
+                        else {
+                            this.currentLetterIndex = 0;    // wrap on displayable letters
+                        }
+                    }
+                } else {
+                    this.currentImageIndex = 1;
+                }
+            }
+
+      
+            static nextFlapAll(digits) {
+                let hasDigitsToMove = false;
+
+                // Click all flags forward as needed
+                for (let i = 0; i < digits.length; i++) {
+                    if (digits[i].currentLetterIndex !== digits[i].targetLetterIndex || digits[i].currentImageIndex !== 1) {
+                        digits[i].nextFlap();
+                        hasDigitsToMove = true;
+                    }
+                    digits[i].nextFlap();
+                }
+
+                if (hasDigitsToMove) {
+                    playFlapSound();
+                }                
+
+                // Repaint all digits
+                requestAnimationFrame(() => {
+                    for (let i = 0; i < digits.length; i++) {
+                        digits[i].updateImage();
+                    }
+                });
+            }
+
+            moveDigit(x, y) {
+                const container = document.getElementById(this.digit_id);
+                container.style.left = `${x}px`;
+                container.style.top = `${y}px`;
+            }
+
+            setDigit(letterIndex) {         // Move directly to the specified letter
+                // convert to range 0-55
+                let ndx = Digit.allLetters.indexOf(letterIndex);
+                this.currentLetterIndex = ndx;
+                this.targetLetterIndex = ndx;
+                this.currentImageIndex = 1;
+                requestAnimationFrame(() => this.updateImage());
+            }
+
+            setTargetDigit(letterIndex) {   // Set a target letter to move to
+                // convert to range 0-55
+                let ndx = Digit.allLetters.indexOf(letterIndex);
+                this.targetLetterIndex = ndx;
+                this.currentImageIndex = 1;
+            }
+        }
+
+
+
+        const overlayTransformT = [
+            'perspective(300px) rotateX(-20deg)',
+            'translate(0px,10px) perspective(300px) rotateX(-50deg)',
+            'translate(0px,-2px) perspective(300px) rotateX(0deg)',
+            'translate(0px,-2px) perspective(300px) rotateX(0deg)',
+            'translate(0px,-2px) perspective(300px) rotateX(0deg)'
+        ];
+        const overlayTransformB = [
+            'translate(0px,0px) perspective(200px) rotateX(0deg)',
+            'translate(0px,0px) perspective(200px) rotateX(-5deg)',
+            'translate(0px,-12px) perspective(200px) rotateX(45deg)',
+            'translate(0px,0px)  perspective(200px) rotateX(15deg)',
+            'translate(0px,-2px) perspective(200px) rotateX(20deg)'
+        ];
+
+
+        
+        function setCurrentTimeAsText() {
+            
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+
+            const hoursText = numberToWords(hours % 12 || 12); // Convert to 12-hour format and then to words
+            const minutesText = numberToWords(minutes);
+            const timeText = `THE TIME IS ${hoursText.toUpperCase()} ${minutesText.toUpperCase()}.`;
+
+            for (let i = 0; i < timeText.length; i++) {
+                    digits[i].setTargetDigit(timeText.charAt(i));
+            }
+        }
+
+        function numberToWords(num) {
+            const words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
+            const tens = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+
+            if (num < 20) {
+                return words[num];
+            } else if (num < 100) {
+                return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? " " + words[num % 10] : "");
+            } else {
+                return num.toString(); // For simplicity, handle only up to 99
+            }
+        }
+
+
+        function updateDisplay( goNow = true ) {
+            const paddedInputLine1 = document.getElementById('input-line-1').value.padEnd(colsOfDigits, ' ');
+            const paddedInputLine2 = document.getElementById('input-line-2').value.padEnd(colsOfDigits, ' ');
+            const paddedInputLine3 =  document.getElementById('input-line-3').value.padEnd(colsOfDigits, ' ');
+            const combinedInput = paddedInputLine1 + paddedInputLine2 + paddedInputLine3;
+
+            for (let i = 0; i < rowsOfDigits * colsOfDigits; i++) {
+                if( goNow ) {
+                    digits[i].setDigit(combinedInput.charAt(i));
+                }
+                else {
+                    digits[i].setTargetDigit(combinedInput.charAt(i));
+                }
+            }
+        }
+
+        function updateDisplayL123( goNow = true, strL1, strL2, strL3 ) {
+            const paddedInputLine1 = strL1 ? strL1.padEnd(colsOfDigits, ' ') : "";
+            const paddedInputLine2 = strL2 ? strL2.padEnd(colsOfDigits, ' ') : "";
+            const paddedInputLine3 = strL3 ? strL3.padEnd(colsOfDigits, ' ') : "";
+            const combinedInput = paddedInputLine1 + paddedInputLine2 + paddedInputLine3;
+            for (let i = 0; i < rowsOfDigits * colsOfDigits; i++) {
+                if( goNow ) {
+                    digits[i].setDigit(combinedInput.charAt(i));
+                }
+                else {
+                    digits[i].setTargetDigit(combinedInput.charAt(i));
+                }
+            }
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        // == MAIN ===
+        const rowsOfDigits = 3;
+        const colsOfDigits = 12;
+        const digitWidth = 130;
+        const digitHeight = 210;
+        const digitSpacing = 10;
+        const leftMargin = 30;
+        const topMargin = 100;
+        
+
+        let digits = [];
+        for (let row = 0; row < rowsOfDigits; row++) {
+            for (let col = 0; col < colsOfDigits; col++) {
+                const digitId = `digit_${row * colsOfDigits + col + 1}`;
+                const x = col * (digitWidth + digitSpacing);
+                const y = row * (digitHeight + digitSpacing);
+                digits.push( new Digit(digitId, 1, 0, leftMargin + x, topMargin + y) );
+            }
+        }
+
+
+
+
+        // Get the URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const line1 = urlParams.get('L11');
+        const line2 = urlParams.get('L12');
+        const line3 = urlParams.get('L13');
+        const goNow = urlParams.get('NOW');
+        updateDisplayL123( goNow ? (goNow=="1") : false , line1, line2, line3 );
+        const line21 = urlParams.get('L21');
+        const line22 = urlParams.get('L22');
+        const line23 = urlParams.get('L23');
+
+        document.addEventListener('keydown', debounce(function(event) {
+            if (event.key === 'ArrowUp') {
+                for (let i = 0; i < rowsOfDigits * colsOfDigits; i++) {
+                    if( digits[i].currentLetterIndex > 0 || digits[i].currentImageIndex < 5 ) {
+                        digits[i].nextImage();
+                    }
+                }
+            }
+            else if (event.key === 'ArrowDown') {
+                Digit.nextFlapAll(digits);
+            }
+        },50));
+
+        // Load the flap sound using AudioBuffer
+        let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let flapBuffer;
+
+        fetch('flap3.wav')
+            .then(response => response.arrayBuffer())
+            .then(data => audioContext.decodeAudioData(data))
+            .then(buffer => {
+                flapBuffer = buffer;
+            });
+
+
+        function playFlapSound() {
+            if (flapBuffer) {
+                let source = audioContext.createBufferSource();
+                source.buffer = flapBuffer;
+                source.connect(audioContext.destination);
+                let delay = Math.random() * 100; // Random delay between 0 and 25 milliseconds
+                setTimeout(() => {
+                    source.start(0);
+                }, delay);
+            }
+        }
+
+        // Store the interval ID
+        let intervalId = setInterval(() => {
+            Digit.nextFlapAllOnce(digits); // flag until all digits are at the target letter
+        }, 50);
+
+        Digit.nextFlapAllOnce = function(digits) {
+            let hasDigitsToMove = false;
+
+            // Click all flags forward as needed
+            for (let i = 0; i < digits.length; i++) {
+                if (digits[i].currentLetterIndex !== digits[i].targetLetterIndex || digits[i].currentImageIndex !== 1) {
+                    digits[i].nextFlap();
+                    hasDigitsToMove = true;
+                }
+            }
+
+            if (hasDigitsToMove) {
+                playFlapSound();
+            } else {
+                clearInterval(intervalId); // Stop the interval timer
+            }
+
+            // Repaint all digits
+            requestAnimationFrame(() => {
+                for (let i = 0; i < digits.length; i++) {
+                    digits[i].updateImage();
+                }
+            });
+        };
+
+
+        
+    </script>
+</body>
+</html>
